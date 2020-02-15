@@ -1,4 +1,4 @@
-# Siftrics Sight API Command-Line Tool and Go Client
+# Sight API Go Client and Command-Line Tool
 
 This repository contains
 
@@ -9,7 +9,7 @@ This repository contains
 
 ### Installation
 
-Download the executable: [LINK HERE]
+Download the latest executable from [the releases page](https://github.com/siftrics/sight/releases).
 
 ### Usage
 
@@ -20,6 +20,10 @@ Download the executable: [LINK HERE]
 You must specify an output file with `-o` or `--output`.
 
 You must specify your API key with `--prompt-api-key` or `--api-key-file <filename>`. The latter flag expects a text file containing your API key on a single line.
+
+### Getting an API Key
+
+Go to [https://siftrics.com/](https://siftrics.com/), sign up for an account, then go to the [Sight dashboard](https://siftrics.com/sight.html) and create an API key.
 
 ## Go Client Quickstart
 
@@ -57,7 +61,7 @@ for {
 The `Recognize` function accepts a variable number of strings as input:
 
 ```
-func (c *Client) Recognize(inputFiles ...string) (chan <- RecognizedPage, error)
+func (c *Client) Recognize(filePaths ...string) (<-chan RecognizedPage, error)
 ```
 
 The pages from `pagesChan` are this type:
@@ -83,7 +87,7 @@ type RecognizedText struct {
 
 The cost of the service is $0.50 per 1,000 pages, which is one third the price of Google Cloud Vision and Amazon Textract.
 
-The accuracy and capability of the Sight API is comparable to Goolge Cloud Vision. It can handle human handwriting.
+The accuracy and capability of the Sight API is comparable to Google Cloud Vision. It can handle human handwriting.
 
 ## Building from Source
 
