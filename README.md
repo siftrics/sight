@@ -5,7 +5,7 @@ This repository contains
 - a command-line tool to recognize text in documents
 - the official Go client for the Sight API
 
-## Command-line Quickstart
+## [Command-line Quickstart](#command-line-quickstart)
 
 ### Installation
 
@@ -25,7 +25,7 @@ You must specify your API key with `--prompt-api-key` or `--api-key-file <filena
 
 Go to [https://siftrics.com/](https://siftrics.com/), sign up for an account, then go to the [Sight dashboard](https://siftrics.com/sight.html) and create an API key.
 
-## Go Client Quickstart
+## [Go Client Quickstart](#go-client-quickstart)
 
 Import this repository:
 
