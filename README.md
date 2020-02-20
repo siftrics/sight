@@ -2,8 +2,8 @@
 
 This repository contains
 
-- [a command-line tool to recognize text in documents](#command-line-quickstart)
-- [the official Go client for the Sight API](#go-client-quickstart)
+- a command-line tool to recognize text in documents
+- the official Go client for the Sight API
 
 ## [Command-line Quickstart](#command-line-quickstart)
 
