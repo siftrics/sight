@@ -1,5 +1,3 @@
-# [Sight API](https://siftrics.com/) Go Client and Command-Line Tool
-
 This repository contains
 
 - a command-line tool to recognize text in documents
@@ -7,11 +5,7 @@ This repository contains
 
 ## [Command-line Quickstart](#command-line-quickstart)
 
-### Installation
-
 Download the latest executable from [the releases page](https://github.com/siftrics/sight/releases).
-
-Mac and Linux users may need to run `chmod u+x path/to/the/sight_executable` on the downloaded executable before it can be executed.
 
 ### Usage
 
@@ -22,6 +16,8 @@ Mac and Linux users may need to run `chmod u+x path/to/the/sight_executable` on 
 You must specify an output file with `-o` or `--output`.
 
 You must specify your API key with `--prompt-api-key` or `--api-key-file <filename>`. The latter flag expects a text file containing your API key on a single line.
+
+_Mac and Linux users may need to run `chmod u+x sight` on the downloaded executable before it can be executed._
 
 ### Getting an API Key
 
