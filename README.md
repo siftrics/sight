@@ -1,15 +1,17 @@
-# Sight API Go Client and Command-Line Tool
+# [Sight API](https://siftrics.com/) Go Client and Command-Line Tool
 
 This repository contains
 
-- a command-line tool to recognize text in documents
-- the official Go client for the Sight API
+- [a command-line tool to recognize text in documents](#command-line-quickstart)
+- [the official Go client for the Sight API](#go-client-quickstart)
 
 ## [Command-line Quickstart](#command-line-quickstart)
 
 ### Installation
 
 Download the latest executable from [the releases page](https://github.com/siftrics/sight/releases).
+
+Mac and Linux users may need to run `chmod u+x path/to/the/sight_executable` on the downloaded executable before it can be executed.
 
 ### Usage
 
@@ -92,7 +94,7 @@ The accuracy and capability of the Sight API is comparable to Google Cloud Visio
 ## Building from Source
 
 ```
-go get -u github.com/siftrics/sight
+go get -u github.com/siftrics/sight/...
 ```
 
 This will place the executable command-line tool `sight` in your `$GOBIN` directory.
@@ -101,8 +103,8 @@ If that fails (due to environment variables, go tooling, etc.), you can try
 
 ```
 $ git clone https://github.com/siftrics/sight
-$ cd sight
-$ go build
+$ cd sight/cli
+$ go build -o sight main.go
 ```
 
 Now the `sight` executable should be in your current working directory.
