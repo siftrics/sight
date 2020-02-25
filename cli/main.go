@@ -42,7 +42,7 @@ func main() {
 		}
 	}
 	if len(os.Args) == 1 || containsHelp {
-		fmt.Fprintf(os.Stderr, `usage: ./sight <--prompt-api-key|--api-key-file filename> <-o output filename> <image/document, ...>
+		fmt.Fprintf(os.Stderr, `usage: ./sight <--prompt-api-key|--api-key-file filename> <-o output filename> [-w|--words] <image/document, ...>
 examples:
 example 1: ./sight -o recognized_text.json --prompt-api-key invoice.png receipt_1.pdf receipt_2.pdf
 example 2: ./sight -o recognized_text.json --api-key-file my_api_key.txt invoice.pdf receipt.pdf
@@ -50,6 +50,7 @@ example 2: ./sight -o recognized_text.json --api-key-file my_api_key.txt invoice
 		os.Exit(1)
 	}
 
+	makeSentences := true
 	promptApiKey := false
 	apiKeyFile := ""
 	outputFile := ""
@@ -94,6 +95,10 @@ Run ./sight -h for more help.
 				os.Exit(1)
 			}
 			outputFile = os.Args[i+1]
+		case "-w":
+			fallthrough
+		case "--words":
+			makeSentences = false
 		default:
 			if !(os.Args[i-1] == "--api-key-file" || os.Args[i-1] == "-o" || os.Args[i-1] == "--output") {
 				inputFiles = append(inputFiles, s)
@@ -154,7 +159,12 @@ Run ./sight -h for more help.
 	}
 	fmt.Println("Recognizing text...")
 
-	pagesChan, err := client.Recognize(inputFiles...)
+	var pagesChan <-chan sight.RecognizedPage
+	if makeSentences {
+		pagesChan, err = client.Recognize(inputFiles...)
+	} else {
+		pagesChan, err = client.RecognizeWords(inputFiles...)
+	}
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(1)
