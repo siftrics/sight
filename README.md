@@ -81,6 +81,11 @@ type RecognizedText struct {
 }
 ```
 
+### Word-Level Bounding Boxes
+
+The function `(c *Client) RecognizeWords` has the same signature has `Recognize`, but it returns word-level bounding boxes instead of sentence-level bounding boxes.
+
+
 ## Cost and Capabilities
 
 The cost of the service is $0.50 per 1,000 pages, which is one third the price of Google Cloud Vision and Amazon Textract.
