@@ -1,7 +1,7 @@
 This repository contains
 
-- a command-line tool to recognize text in documents
-- the official Go client for the Sight API
+- A command-line tool to recognize text in documents.
+- The official Go client for the Sight API. [GoDoc here](https://godoc.org/github.com/siftrics/sight).
 
 ## [Command-line Quickstart](#command-line-quickstart)
 
@@ -10,7 +10,7 @@ Download the latest executable from [the releases page](https://github.com/siftr
 ### Usage
 
 ```
-./sight receipt_1.pdf receipt_2.pdf --output recognized_text.json --prompt-api-key
+./sight receipt_1.jpg receipt_2.pdf -o recognized_text.json --prompt-api-key
 ```
 
 You must specify an output file with `-o` or `--output`.
@@ -24,6 +24,8 @@ _Mac and Linux users may need to run `chmod u+x sight` on the downloaded executa
 Go to [https://siftrics.com/](https://siftrics.com/), sign up for an account, then go to the [Sight dashboard](https://siftrics.com/sight.html) and create an API key.
 
 ## [Go Client Quickstart](#go-client-quickstart)
+
+Here's the [GoDoc page](https://godoc.org/github.com/siftrics/sight).
 
 Import this repository:
 
@@ -85,6 +87,28 @@ type RecognizedText struct {
 
 The function `(c *Client) RecognizeWords` has the same signature has `Recognize`, but it returns word-level bounding boxes instead of sentence-level bounding boxes.
 
+### Why are the bounding boxes are rotated 90 degrees?
+
+Some images, particularly .jpeg images, use the [EXIF](https://en.wikipedia.org/wiki/Exif) data format. This data format contains a metadata field indicating the orientation of an image --- i.e., whether the image should be rotated 90 degrees, 180 degrees, flipped horizontally, etc., when viewing it in an image viewer.
+
+This means that when you view such an image in Chrome, Firefox, Safari, or the stock Windows and Mac image viewer applications, it will appear upright, despite the fact that the underlying pixels of the image are encoded in a different orientation.
+
+If you find your bounding boxes are rotated or flipped relative to your image, it is because the image decoder you are using to load images in your program obeys EXIF orientation, but the Sight API ignores it (or vice versa).
+
+All the most popular imaging libraries in Go, such as "image" and "github.com/disintegration/imaging", ignore EXIF orientation. You should determine whether your image decoder obeys EXIF orientation and tell the Sight API to do the same thing. You can tell the Sight API to obey the EXIF orientation by calling the `RecognizeCfg` function with `DoExifRotate` set to `true`:
+
+```
+pagesChan, err := c.RecognizeCfg(
+    sight.Config{
+        DoExifRotate: true,
+        MakeSentences: true,
+    },
+    "invoice1.jpg",
+    "invoice2.jpg",
+)
+```
+
+By default, the Sight API ignores EXIF orientation.
 
 ## Cost and Capabilities
 

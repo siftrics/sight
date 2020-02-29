@@ -27,12 +27,23 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strings"
 	"time"
 )
+
+// Config is used to consolidate the parameters to the function
+// func (c *Client) RecognizeCfg. As the Sight API becomes more configurable,
+// the number of parameters will grow unwieldy. This allows RecognizeCfg
+// interface to remain readable (few parameters) and unchanged over time.
+type Config struct {
+	MakeSentences bool
+	DoExifRotate  bool
+}
 
 type SightRequest struct {
 	Files         []SightRequestFile
 	MakeSentences bool
+	DoExifRotate  bool
 }
 
 type SightRequestFile struct {
@@ -76,7 +87,7 @@ func NewClient(apiKey string) *Client {
 // nature of the initial network request, this function must be run in a separate
 // goroutine.
 func (c *Client) Recognize(filePaths ...string) (<-chan RecognizedPage, error) {
-	return c.recognize(true, filePaths...)
+	return c.recognize(true, false, filePaths...)
 }
 
 // Recognize uses the Sight API to recognize all the text in the given files.
@@ -92,19 +103,36 @@ func (c *Client) Recognize(filePaths ...string) (<-chan RecognizedPage, error) {
 // nature of the initial network request, this function must be run in a separate
 // goroutine.
 func (c *Client) RecognizeWords(filePaths ...string) (<-chan RecognizedPage, error) {
-	return c.recognize(false, filePaths...)
+	return c.recognize(false, false, filePaths...)
 }
 
-func (c *Client) recognize(makeSentences bool, filePaths ...string) (<-chan RecognizedPage, error) {
+// Recognize uses the Sight API to recognize all the text in the given files.
+//
+// If err != nil, then ioutil.ReadAll failed on a given file, a MIME type was
+// failed to be inferred from the suffix (extension) of a given filename, or
+// there was an error with the _initial_ HTTP request or response.
+//
+// This function blocks until receiving a response for the _initial_ HTTP request
+// to the Sight API, so that non-200 responses for the initial request are conveyed
+// via the returned error. All remaining work, including any additional network
+// requests, is done in a separate goroutine. Accordingly, to avoid the blocking
+// nature of the initial network request, this function must be run in a separate
+// goroutine.
+func (c *Client) RecognizeCfg(cfg Config, filePaths ...string) (<-chan RecognizedPage, error) {
+	return c.recognize(cfg.MakeSentences, cfg.DoExifRotate, filePaths...)
+}
+
+func (c *Client) recognize(makeSentences, doExifRotate bool, filePaths ...string) (<-chan RecognizedPage, error) {
 	sr := SightRequest{
 		Files:         make([]SightRequestFile, len(filePaths), len(filePaths)),
 		MakeSentences: makeSentences,
+		DoExifRotate:  doExifRotate,
 	}
 	for i, fp := range filePaths {
 		if len(fp) < 4 {
 			return nil, fmt.Errorf("failed to infer MIME type from file path: %v", fp)
 		}
-		switch fp[len(fp)-4 : len(fp)] {
+		switch strings.ToLower(fp[len(fp)-4 : len(fp)]) {
 		case ".bmp":
 			sr.Files[i].MimeType = "image/bmp"
 		case ".gif":
@@ -116,7 +144,7 @@ func (c *Client) recognize(makeSentences bool, filePaths ...string) (<-chan Reco
 		case ".jpg":
 			sr.Files[i].MimeType = "image/jpg"
 		default:
-			if len(fp) >= 5 && fp[len(fp)-5:len(fp)] == ".jpeg" {
+			if len(fp) >= 5 && strings.ToLower(fp[len(fp)-5:len(fp)]) == ".jpeg" {
 				sr.Files[i].MimeType = "image/jpeg"
 			} else {
 				return nil, fmt.Errorf("failed to infer MIME type from file path: %v", fp)
