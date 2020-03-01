@@ -91,7 +91,7 @@ The function `(c *Client) RecognizeWords` has the same signature has `Recognize`
 
 ### Auto-Rotate
 
-The Sight API can rotate and return input images so the majority of the recognized text is upright. To enable this behavior, call the `RecognizeCfg` function with `DoAutoRotate` set to `true`:
+The Sight API can rotate and return input images so the majority of the recognized text is upright. Note that this feature is part of the "Advanced" Sight API and therefore each page processed with this behavior enabled is billed as 4 pages. To enable this behavior, call the `RecognizeCfg` function with `DoAutoRotate` set to `true`:
 
 ```
 pagesChan, err := c.RecognizeCfg(
