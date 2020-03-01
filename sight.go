@@ -77,18 +77,7 @@ func NewClient(apiKey string) *Client {
 	return &Client{apiKey: apiKey}
 }
 
-// Recognize uses the Sight API to recognize all the text in the given files.
-//
-// If err != nil, then ioutil.ReadAll failed on a given file, a MIME type was
-// failed to be inferred from the suffix (extension) of a given filename, or
-// there was an error with the _initial_ HTTP request or response.
-//
-// This function blocks until receiving a response for the _initial_ HTTP request
-// to the Sight API, so that non-200 responses for the initial request are conveyed
-// via the returned error. All remaining work, including any additional network
-// requests, is done in a separate goroutine. Accordingly, to avoid the blocking
-// nature of the initial network request, this function must be run in a separate
-// goroutine.
+// Recognize is shorthand for calling RecognizeCfg with all the default config values.
 func (c *Client) Recognize(filePaths ...string) (<-chan RecognizedPage, error) {
 	return c.RecognizeCfg(
 		Config{
@@ -100,18 +89,8 @@ func (c *Client) Recognize(filePaths ...string) (<-chan RecognizedPage, error) {
 	)
 }
 
-// Recognize uses the Sight API to recognize all the text in the given files.
-//
-// If err != nil, then ioutil.ReadAll failed on a given file, a MIME type was
-// failed to be inferred from the suffix (extension) of a given filename, or
-// there was an error with the _initial_ HTTP request or response.
-//
-// This function blocks until receiving a response for the _initial_ HTTP request
-// to the Sight API, so that non-200 responses for the initial request are conveyed
-// via the returned error. All remaining work, including any additional network
-// requests, is done in a separate goroutine. Accordingly, to avoid the blocking
-// nature of the initial network request, this function must be run in a separate
-// goroutine.
+// RecognizeWords is shorthand for calling RecognizeCfg with all default config values,
+// except MakeSentences is disabled, so word-level bounding boxes are returned.
 func (c *Client) RecognizeWords(filePaths ...string) (<-chan RecognizedPage, error) {
 	return c.RecognizeCfg(
 		Config{
