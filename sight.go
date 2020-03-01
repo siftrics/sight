@@ -38,12 +38,14 @@ import (
 type Config struct {
 	MakeSentences bool
 	DoExifRotate  bool
+	DoAutoRotate  bool
 }
 
 type SightRequest struct {
 	Files         []SightRequestFile
 	MakeSentences bool
 	DoExifRotate  bool
+	DoAutoRotate  bool
 }
 
 type SightRequestFile struct {
@@ -57,6 +59,7 @@ type RecognizedPage struct {
 	PageNumber          int
 	NumberOfPagesInFile int
 	RecognizedText      []RecognizedText
+	Base64Image         string `json:",omitempty"`
 }
 
 type RecognizedText struct {
@@ -87,7 +90,14 @@ func NewClient(apiKey string) *Client {
 // nature of the initial network request, this function must be run in a separate
 // goroutine.
 func (c *Client) Recognize(filePaths ...string) (<-chan RecognizedPage, error) {
-	return c.recognize(true, false, filePaths...)
+	return c.RecognizeCfg(
+		Config{
+			MakeSentences: true,
+			DoExifRotate:  false,
+			DoAutoRotate:  false,
+		},
+		filePaths...,
+	)
 }
 
 // Recognize uses the Sight API to recognize all the text in the given files.
@@ -103,10 +113,17 @@ func (c *Client) Recognize(filePaths ...string) (<-chan RecognizedPage, error) {
 // nature of the initial network request, this function must be run in a separate
 // goroutine.
 func (c *Client) RecognizeWords(filePaths ...string) (<-chan RecognizedPage, error) {
-	return c.recognize(false, false, filePaths...)
+	return c.RecognizeCfg(
+		Config{
+			MakeSentences: false,
+			DoExifRotate:  false,
+			DoAutoRotate:  false,
+		},
+		filePaths...,
+	)
 }
 
-// Recognize uses the Sight API to recognize all the text in the given files.
+// RecognizeCfg uses the Sight API to recognize all the text in the given files.
 //
 // If err != nil, then ioutil.ReadAll failed on a given file, a MIME type was
 // failed to be inferred from the suffix (extension) of a given filename, or
@@ -119,14 +136,11 @@ func (c *Client) RecognizeWords(filePaths ...string) (<-chan RecognizedPage, err
 // nature of the initial network request, this function must be run in a separate
 // goroutine.
 func (c *Client) RecognizeCfg(cfg Config, filePaths ...string) (<-chan RecognizedPage, error) {
-	return c.recognize(cfg.MakeSentences, cfg.DoExifRotate, filePaths...)
-}
-
-func (c *Client) recognize(makeSentences, doExifRotate bool, filePaths ...string) (<-chan RecognizedPage, error) {
 	sr := SightRequest{
 		Files:         make([]SightRequestFile, len(filePaths), len(filePaths)),
-		MakeSentences: makeSentences,
-		DoExifRotate:  doExifRotate,
+		MakeSentences: cfg.MakeSentences,
+		DoExifRotate:  cfg.DoExifRotate,
+		DoAutoRotate:  cfg.DoAutoRotate,
 	}
 	for i, fp := range filePaths {
 		if len(fp) < 4 {
@@ -185,6 +199,7 @@ func (c *Client) recognize(makeSentences, doExifRotate bool, filePaths ...string
 	var either struct {
 		PollingURL     string
 		RecognizedText []RecognizedText
+		Base64Image    string
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&either); err != nil {
 		return nil, fmt.Errorf("This should never happen and is not your fault: failed to decode body of initial HTTP request; error: %v", err)
@@ -199,6 +214,7 @@ func (c *Client) recognize(makeSentences, doExifRotate bool, filePaths ...string
 				PageNumber:          1,
 				NumberOfPagesInFile: 1,
 				RecognizedText:      either.RecognizedText,
+				Base64Image:         either.Base64Image,
 			}
 			close(pagesChan)
 			return

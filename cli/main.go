@@ -21,10 +21,13 @@
 package main
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"strings"
 	"syscall"
 
@@ -42,10 +45,17 @@ func main() {
 		}
 	}
 	if len(os.Args) == 1 || containsHelp {
-		fmt.Fprintf(os.Stderr, `usage: ./sight <--prompt-api-key|--api-key-file filename> <-o output filename> [-w|--words] [-e|--obey-exif] <image/document, ...>
+		fmt.Fprintf(os.Stderr, `usage: ./sight <--prompt-api-key|--api-key-file filename> <-o output filename> <image/document, ...>
+
 examples:
-example 1: ./sight receipt_1.jpg receipt_2.pdf -o recognized_text.json --prompt-api-key invoice.png
-example 2: ./sight invoice.pdf receipt.png -o recognized_text.json --api-key-file my_api_key.txt
+ ./sight receipt_1.jpg receipt_2.pdf -o recognized_text.json --prompt-api-key invoice.png
+ ./sight invoice.pdf receipt.png -o recognized_text.json --api-key-file my_api_key.txt
+
+optional flags:
+ [-w|--words]        return word-level bounding boxes instead of coalescing them
+                       into sentence-level bounding boxes.
+ [-e|--obey-exif]    use EXIF orientation for bounding box coordinate system.
+ [-r|--auto-rotate]  return and save the input images rotated so the majority of the text is upright.
 `)
 		os.Exit(1)
 	}
@@ -53,6 +63,7 @@ example 2: ./sight invoice.pdf receipt.png -o recognized_text.json --api-key-fil
 	cfg := sight.Config{
 		MakeSentences: true,
 		DoExifRotate:  false,
+		DoAutoRotate:  false,
 	}
 	promptApiKey := false
 	apiKeyFile := ""
@@ -106,6 +117,10 @@ Run ./sight -h for more help.
 			fallthrough
 		case "--obey-exif":
 			cfg.DoExifRotate = true
+		case "-r":
+			fallthrough
+		case "--auto-rotate":
+			cfg.DoAutoRotate = true
 		default:
 			if !(os.Args[i-1] == "--api-key-file" || os.Args[i-1] == "-o" || os.Args[i-1] == "--output") {
 				inputFiles = append(inputFiles, s)
@@ -164,7 +179,7 @@ Run ./sight -h for more help.
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(1)
 	}
-	fmt.Println("Recognizing text...")
+	fmt.Println("Uploading files...")
 
 	pagesChan, err := client.RecognizeCfg(cfg, inputFiles...)
 	if err != nil {
@@ -184,6 +199,41 @@ Run ./sight -h for more help.
 			fmt.Fprintf(of, ",")
 		} else {
 			isFirstPage = false
+		}
+		if page.Base64Image != "" {
+			fn := fmt.Sprintf("autoRotated-%v", filepath.Base(inputFiles[page.FileIndex]))
+			dest := fn
+			number := 1
+			dontSave := false
+			for {
+				_, err := os.Stat(dest)
+				if err == nil {
+					dest = fmt.Sprintf("%v-%v", number, fn)
+					number++
+					continue
+				} else if os.IsNotExist(err) {
+					break
+				} else {
+					fmt.Fprintf(os.Stderr, "\nerror: failed to save auto-rotated %v because stat failed with error:\n%v\n",
+						inputFiles[page.FileIndex], err)
+					dontSave = true
+					break
+				}
+			}
+			if !dontSave {
+				fmt.Printf("Saving auto-rotated %v to %v.\n", inputFiles[page.FileIndex], dest)
+				f, err := os.Create(dest)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "\nerror: failed to save auto-rotated %v to %v:\n%v\n",
+						inputFiles[page.FileIndex], dest, err)
+				} else {
+					if _, err := io.Copy(f, base64.NewDecoder(base64.StdEncoding, strings.NewReader(page.Base64Image))); err != nil {
+						fmt.Fprintf(os.Stderr, "\nerror: failed to save auto-rotated %v to %v:\n%v\n",
+							inputFiles[page.FileIndex], dest, err)
+					}
+					f.Close()
+				}
+			}
 		}
 		jsonBytes, err := json.Marshal(page)
 		if err != nil {

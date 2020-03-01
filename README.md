@@ -17,6 +17,8 @@ You must specify an output file with `-o` or `--output`.
 
 You must specify your API key with `--prompt-api-key` or `--api-key-file <filename>`. The latter flag expects a text file containing your API key on a single line.
 
+Run `./sight` with no flags or arguments to display the full usage section and list all optional flags.
+
 _Mac and Linux users may need to run `chmod u+x sight` on the downloaded executable before it can be executed._
 
 ### Getting an API Key
@@ -86,6 +88,36 @@ type RecognizedText struct {
 ### Word-Level Bounding Boxes
 
 The function `(c *Client) RecognizeWords` has the same signature has `Recognize`, but it returns word-level bounding boxes instead of sentence-level bounding boxes.
+
+### Auto-Rotate
+
+The Sight API can rotate and return input images so the majority of the recognized text is upright. To enable this behavior, call the `RecognizeCfg` function with `DoAutoRotate` set to `true`:
+
+```
+pagesChan, err := c.RecognizeCfg(
+    sight.Config{
+        DoAutoRotate: true,
+        MakeSentences: true,
+    },
+    "invoice1.jpg",
+    "invoice2.jpg",
+)
+```
+
+Now, the `Base64Image` field will be set in the `page` objects you receive from `pagesChan`.
+
+A common desire is to decode the images and write them to disk. Here's a snippet of code that does that:
+
+```
+f, err := os.Create("auto-rotated.png")
+if err != nil {
+    ...
+}
+defer f.Close()
+if _, err := io.Copy(f, base64.NewDecoder(base64.StdEncoding, strings.NewReader(page.Base64Image))); err != nil {
+    ...
+}
+```
 
 ### Why are the bounding boxes are rotated 90 degrees?
 
