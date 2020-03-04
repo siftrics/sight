@@ -39,6 +39,7 @@ type Config struct {
 	MakeSentences bool
 	DoExifRotate  bool
 	DoAutoRotate  bool
+	DoAsync       bool
 }
 
 type SightRequest struct {
@@ -46,6 +47,7 @@ type SightRequest struct {
 	MakeSentences bool
 	DoExifRotate  bool
 	DoAutoRotate  bool
+	DoAsync       bool
 }
 
 type SightRequestFile struct {
@@ -84,6 +86,7 @@ func (c *Client) Recognize(filePaths ...string) (<-chan RecognizedPage, error) {
 			MakeSentences: true,
 			DoExifRotate:  false,
 			DoAutoRotate:  false,
+			DoAsync:       false,
 		},
 		filePaths...,
 	)
@@ -97,6 +100,7 @@ func (c *Client) RecognizeWords(filePaths ...string) (<-chan RecognizedPage, err
 			MakeSentences: false,
 			DoExifRotate:  false,
 			DoAutoRotate:  false,
+			DoAsync:       false,
 		},
 		filePaths...,
 	)
@@ -120,6 +124,7 @@ func (c *Client) RecognizeCfg(cfg Config, filePaths ...string) (<-chan Recognize
 		MakeSentences: cfg.MakeSentences,
 		DoExifRotate:  cfg.DoExifRotate,
 		DoAutoRotate:  cfg.DoAutoRotate,
+		DoAsync:       cfg.DoAsync,
 	}
 	for i, fp := range filePaths {
 		if len(fp) < 4 {
