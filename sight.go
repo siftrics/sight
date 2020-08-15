@@ -28,6 +28,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -106,6 +107,13 @@ func (c *Client) RecognizeWords(filePaths ...string) (<-chan RecognizedPage, err
 	)
 }
 
+type recognizedPageOrError struct {
+	RecognizedPage RecognizedPage
+	StartIndex     int
+	IsBatchDone    bool
+	Error          error
+}
+
 // RecognizeCfg uses the Sight API to recognize all the text in the given files.
 //
 // If err != nil, then ioutil.ReadAll failed on a given file, a MIME type was
@@ -119,6 +127,133 @@ func (c *Client) RecognizeWords(filePaths ...string) (<-chan RecognizedPage, err
 // nature of the initial network request, this function must be run in a separate
 // goroutine.
 func (c *Client) RecognizeCfg(cfg Config, filePaths ...string) (<-chan RecognizedPage, error) {
+	// send requests in batches of 16 pages
+	returnChan := make(chan RecognizedPage, 16)
+	internalChan := make(chan recognizedPageOrError, 16) // 16 is just a random number here
+	batchIndexes := make([]int, 0)
+	for startIndex := 0; startIndex < len(filePaths); startIndex += 16 {
+		batchIndexes = append(batchIndexes, startIndex)
+		endIndex := startIndex + 16
+		if endIndex > len(filePaths) {
+			endIndex = len(filePaths)
+		}
+		go func(startIndex, endIndex int) {
+			ch, err := c.recognizeCfg(cfg, filePaths[startIndex:endIndex]...)
+			if err != nil {
+				internalChan <- recognizedPageOrError{
+					IsBatchDone: true,
+					StartIndex:  startIndex,
+					Error:       err,
+				}
+			}
+			for {
+				page, isOpen := <-ch
+				if !isOpen {
+					internalChan <- recognizedPageOrError{
+						IsBatchDone: true,
+						StartIndex:  startIndex,
+						Error:       nil,
+					}
+					break
+				}
+				internalChan <- recognizedPageOrError{
+					RecognizedPage: page,
+					IsBatchDone:    false,
+					StartIndex:     startIndex,
+					Error:          nil,
+				}
+			}
+		}(startIndex, endIndex)
+	}
+	batchIndex2SeenAResponse := make(map[int]bool)
+	for _, batchIndex := range batchIndexes {
+		batchIndex2SeenAResponse[batchIndex] = false
+	}
+	var isDoneMux sync.Mutex
+	batchIndex2IsDone := make(map[int]bool)
+	for _, batchIndex := range batchIndexes {
+		batchIndex2IsDone[batchIndex] = false
+	}
+	for {
+		rpoe := <-internalChan
+		if rpoe.Error != nil {
+			return nil, rpoe.Error
+		}
+		if rpoe.IsBatchDone {
+			batchIndex2IsDone[rpoe.StartIndex] = true
+			isAllDone := true
+			for _, isDone := range batchIndex2IsDone {
+				if !isDone {
+					isAllDone = false
+					break
+				}
+			}
+			if isAllDone {
+				close(returnChan)
+				return returnChan, nil
+			}
+			continue
+		}
+		pageWithCorrectIndex := rpoe.RecognizedPage
+		pageWithCorrectIndex.FileIndex += rpoe.StartIndex
+		returnChan <- pageWithCorrectIndex
+		batchIndex2SeenAResponse[rpoe.StartIndex] = true
+		seenAResponseFromAllBatches := true
+		for _, seenAResponse := range batchIndex2SeenAResponse {
+			if !seenAResponse {
+				seenAResponseFromAllBatches = false
+				break
+			}
+		}
+		if seenAResponseFromAllBatches {
+			break
+		}
+	}
+	go func() {
+		for {
+			rpoe := <-internalChan
+			if rpoe.IsBatchDone {
+				isDoneMux.Lock()
+				batchIndex2IsDone[rpoe.StartIndex] = true
+				isAllDone := true
+				for _, isDone := range batchIndex2IsDone {
+					if !isDone {
+						isAllDone = false
+						break
+					}
+				}
+				isDoneMux.Unlock()
+				if isAllDone {
+					close(returnChan)
+					return
+				}
+				continue
+			}
+			pageWithCorrectIndex := rpoe.RecognizedPage
+			pageWithCorrectIndex.FileIndex += rpoe.StartIndex
+			if rpoe.Error != nil {
+				if pageWithCorrectIndex.Error != "" {
+					pageWithCorrectIndex.Error = fmt.Sprintf("There were two errors, "+
+						"the first of which should never happen: "+
+						"error 1: saw error on internalChan in RecognizeCfg "+
+						"_after_ saw initial response on all channels. error 2: %v",
+						pageWithCorrectIndex.Error)
+					return
+				} else {
+					pageWithCorrectIndex.Error = fmt.Sprintf("This should never happen: "+
+						"saw error on internalChan in RecognizeCfg "+
+						"_after_ saw initial response on all channels. error: %v",
+						rpoe.Error)
+					return
+				}
+			}
+			returnChan <- pageWithCorrectIndex
+		}
+	}()
+	return returnChan, nil
+}
+
+func (c *Client) recognizeCfg(cfg Config, filePaths ...string) (<-chan RecognizedPage, error) {
 	sr := SightRequest{
 		Files:         make([]SightRequestFile, len(filePaths), len(filePaths)),
 		MakeSentences: cfg.MakeSentences,
