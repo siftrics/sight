@@ -142,6 +142,22 @@ pagesChan, err := c.RecognizeCfg(
 
 By default, the Sight API ignores EXIF orientation.
 
+## Script Hints
+
+It is possible to tell the Sight API to only recognize certain scripts (e.g., latin, cyrillic, etc.). To do this, pass script hint codes into the `RecgonizeCfg` function:
+
+```
+pagesChan, err := c.RecognizeCfg(
+    sight.Config{
+        ScriptHints: []string{"latin", "cyrillic"},
+    },
+    "invoice1.jpg",
+    "invoice2.jpg",
+)
+```
+
+By default, `ScriptHints` is empty and the Sight API automatically detects scripts.
+
 ## Cost and Capabilities
 
 The cost of the service is $0.50 per 1,000 pages, which is one third the price of Google Cloud Vision and Amazon Textract.

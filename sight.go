@@ -31,6 +31,34 @@ import (
 	"time"
 )
 
+// SupportedScripts is the set of all supported script hint codes.
+// A script hint code can be used to tell the Sight API to only detect
+// text from that script. It is passed into RecognizeCfg.
+var SupportedScripts = map[string]bool{
+	"arab":     true,
+	"armenian": true,
+	"bengali":  true,
+	"bokmal":   true,
+	"cyrillic": true,
+	"greek":    true,
+	"gujarati": true,
+	"guru":     true,
+	"hans":     true,
+	"hant":     true,
+	"hebrew":   true,
+	"hindi":    true,
+	"japanese": true,
+	"kannada":  true,
+	"khmer":    true,
+	"korean":   true,
+	"lao":      true,
+	"latin":    true,
+	"malayam":  true,
+	"tamil":    true,
+	"telugu":   true,
+	"thai":     true,
+}
+
 // Config is used to consolidate the parameters to the function
 // func (c *Client) RecognizeCfg. As the Sight API becomes more configurable,
 // the number of parameters will grow unwieldy. This allows RecognizeCfg
@@ -40,6 +68,7 @@ type Config struct {
 	DoExifRotate  bool
 	DoAutoRotate  bool
 	DoAsync       bool
+	ScriptHints   []string
 }
 
 type SightRequest struct {
@@ -48,6 +77,7 @@ type SightRequest struct {
 	DoExifRotate  bool
 	DoAutoRotate  bool
 	DoAsync       bool
+	ScriptHints   []string
 }
 
 type SightRequestFile struct {
@@ -87,6 +117,7 @@ func (c *Client) Recognize(filePaths ...string) (<-chan RecognizedPage, error) {
 			DoExifRotate:  false,
 			DoAutoRotate:  false,
 			DoAsync:       false,
+			ScriptHints:   make([]string, 0),
 		},
 		filePaths...,
 	)
@@ -101,6 +132,7 @@ func (c *Client) RecognizeWords(filePaths ...string) (<-chan RecognizedPage, err
 			DoExifRotate:  false,
 			DoAutoRotate:  false,
 			DoAsync:       false,
+			ScriptHints:   make([]string, 0),
 		},
 		filePaths...,
 	)
@@ -125,6 +157,12 @@ func (c *Client) RecognizeCfg(cfg Config, filePaths ...string) (<-chan Recognize
 		DoExifRotate:  cfg.DoExifRotate,
 		DoAutoRotate:  cfg.DoAutoRotate,
 		DoAsync:       cfg.DoAsync,
+		ScriptHints:   cfg.ScriptHints,
+	}
+	for _, hint := range sr.ScriptHints {
+		if _, ok := SupportedScripts[hint]; !ok {
+			return nil, fmt.Errorf(`"%v" is not a supported script`, hint)
+		}
 	}
 	for i, fp := range filePaths {
 		if len(fp) < 4 {

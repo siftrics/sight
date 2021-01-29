@@ -52,10 +52,16 @@ examples:
  ./sight invoice.pdf receipt.png -o recognized_text.json --api-key-file my_api_key.txt
 
 optional flags:
- [-w|--words]        return word-level bounding boxes instead of coalescing them
+ [-w|--words]        Return word-level bounding boxes instead of coalescing them
                        into sentence-level bounding boxes.
- [-e|--obey-exif]    use EXIF orientation for bounding box coordinate system.
- [-r|--auto-rotate]  return and save the input images rotated so the majority of the text is upright.
+ [-e|--obey-exif]    Use EXIF orientation for bounding box coordinate system.
+ [-r|--auto-rotate]  Return and save the input images rotated so the majority of the text is upright.
+ [-s|--script-hints] Specify which script to recognize in the document (latin, cyrillic, etc.).
+                       The value must be a comma-delimited string (no spaces) of script hint codes.
+
+                       E.g., --script-hints latin,thai,cyrillic
+
+                       See https://siftrics.com/docs/sight.html for a full list of script codes.
 `)
 		os.Exit(1)
 	}
@@ -64,11 +70,11 @@ optional flags:
 		MakeSentences: true,
 		DoExifRotate:  false,
 		DoAutoRotate:  false,
+		ScriptHints:   make([]string, 0),
 	}
 	promptApiKey := false
-	apiKeyFile := ""
-	outputFile := ""
-	inputFiles := make([]string, 0)
+	var apiKeyFile, outputFile string
+	var inputFiles []string
 	for i, s := range os.Args {
 		if i == 0 {
 			continue
@@ -109,6 +115,32 @@ Run ./sight -h for more help.
 				os.Exit(1)
 			}
 			outputFile = os.Args[i+1]
+		case "-s":
+			fallthrough
+		case "--script-hints":
+			if i+1 >= len(os.Args) {
+				fmt.Fprintf(os.Stderr, `error: -s (or --script-hints) was specified but no script hints came after it.
+--script-hints is supposed to be followed by the a script code (latin, cyrillic, etc.).
+
+See https://siftrics.com/docs/sight.html for a full list of script codes.
+`)
+				os.Exit(1)
+			}
+			if len(cfg.ScriptHints) != 0 {
+				fmt.Fprintf(os.Stderr, `error: -s (or --script-hints) was specified twice but it should only be specified once.
+Run ./sight -h for more help.
+`)
+				os.Exit(1)
+			}
+			cfg.ScriptHints = strings.Split(os.Args[i+1], ",")
+			for _, hint := range cfg.ScriptHints {
+				if _, ok := sight.SupportedScripts[hint]; !ok {
+					fmt.Fprintf(os.Stderr, `error: "%v" is not a supported script.
+Run ./sight -h for more help.
+`, hint)
+					os.Exit(1)
+				}
+			}
 		case "-w":
 			fallthrough
 		case "--words":
@@ -122,7 +154,9 @@ Run ./sight -h for more help.
 		case "--auto-rotate":
 			cfg.DoAutoRotate = true
 		default:
-			if !(os.Args[i-1] == "--api-key-file" || os.Args[i-1] == "-o" || os.Args[i-1] == "--output") {
+			if !(os.Args[i-1] == "--api-key-file" ||
+				os.Args[i-1] == "-o" || os.Args[i-1] == "--output" ||
+				os.Args[i-1] == "-s" || os.Args[i-1] == "--script-hints") {
 				inputFiles = append(inputFiles, s)
 			}
 		}
